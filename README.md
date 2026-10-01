@@ -9,30 +9,16 @@ The pipeline processes Orders and Customers data, applies data-quality rules, re
 ## Architecture
 
 ```text
-Source CSV Files
-       |
-       v
-+----------------+
-| Bronze Layer   |
-| Raw + Metadata |
-+----------------+
-       |
-       v
-+----------------+
-| Silver Layer   |
-| DQ Validation  |
-+----------------+
-       |
-       +------> Row/File Rejection Tables
-       |
-       v
-+----------------+
-| Gold Layer     |
-| DQ + Freshness |
-+----------------+
-       |
-       v
-    Snowflake
+DataGuard/
+│
+├── 2570002_notebook_bronze_silver_gold.ipynb
+├── 2570002_snowflake.sql
+├── generator_code.txt
+├── gold_dq_results.csv
+├── gold_freshness.csv
+├── DataGuard System Architecture.png
+├── README.md
+└── requirements.txt
 ```
 
 ## Technologies Used
