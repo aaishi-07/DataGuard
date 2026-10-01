@@ -284,7 +284,7 @@ pyspark
 PySpark is normally provided by the Databricks runtime, so `requirements.txt` is mainly included to document the environment.
 
 
-## Live Dashboard
+## 10. Live Dashboard
 
 DataGuard includes a Streamlit monitoring dashboard connected directly
 to Snowflake.
