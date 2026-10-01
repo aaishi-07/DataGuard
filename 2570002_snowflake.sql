@@ -1,0 +1,116 @@
+-- ============================================
+-- STEP 1: DATABASE / SCHEMA / STAGE SETUP
+-- ============================================
+
+CREATE DATABASE IF NOT EXISTS PIPELINE_HEALTH;
+
+CREATE SCHEMA IF NOT EXISTS PIPELINE_HEALTH.GOLD;
+
+USE DATABASE PIPELINE_HEALTH;
+
+USE SCHEMA GOLD;
+
+CREATE OR REPLACE STAGE GOLD_STAGE;
+
+-- ============================================
+-- STEP 2: GOLD DQ RESULTS TABLE
+-- ============================================
+
+CREATE OR REPLACE TABLE GOLD_DQ_RESULTS (
+    table_name STRING,
+    load_id STRING,
+    rule_id STRING,
+    rule_name STRING,
+    rule_scope STRING,
+    rows_checked INTEGER,
+    rows_failed INTEGER,
+    fail_rate FLOAT,
+    rule_status STRING
+);
+
+-- ============================================
+-- STEP 3: CSV FILE FORMAT
+-- ============================================
+
+CREATE OR REPLACE FILE FORMAT GOLD_CSV_FORMAT
+    TYPE = CSV
+    SKIP_HEADER = 1
+    FIELD_OPTIONALLY_ENCLOSED_BY = '"';
+
+    SHOW STAGES IN SCHEMA PIPELINE_HEALTH.GOLD;
+
+   
+
+    LIST @PIPELINE_HEALTH.GOLD.GOLD_STAGE;
+
+    CREATE OR REPLACE TABLE GOLD_DQ_RESULTS (
+    TABLE_NAME STRING,
+    LOAD_ID STRING,
+    RULE_ID STRING,
+    RULE_NAME STRING,
+    RULE_SCOPE STRING,
+    ROWS_CHECKED NUMBER,
+    ROWS_FAILED NUMBER,
+    FAIL_RATE FLOAT,
+    RULE_STATUS STRING
+);
+
+
+COPY INTO GOLD_DQ_RESULTS
+FROM @gold_stage
+FILE_FORMAT = (
+    TYPE = CSV
+    SKIP_HEADER = 1
+    FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+)
+PATTERN = '.*\.csv';
+
+
+SELECT COUNT(*) AS ROW_COUNT
+FROM GOLD_DQ_RESULTS;
+
+
+SELECT
+    RULE_ID,
+    RULE_NAME,
+    SUM(ROWS_FAILED) AS TOTAL_FAILED
+FROM GOLD_DQ_RESULTS
+GROUP BY RULE_ID, RULE_NAME
+ORDER BY RULE_ID;
+
+
+SELECT
+    TABLE_NAME,
+    COUNT(*) AS RULE_RECORDS,
+    SUM(ROWS_FAILED) AS TOTAL_FAILED
+FROM GOLD_DQ_RESULTS
+GROUP BY TABLE_NAME
+ORDER BY TABLE_NAME;
+
+
+-- ============================================
+-- STEP 3: GOLD FRESHNESS RESULTS TABLE
+-- ============================================
+
+CREATE OR REPLACE TABLE GOLD_FRESHNESS (
+    TABLE_NAME STRING,
+    CHECK_TS TIMESTAMP,
+    LAST_BUSINESS_TS TIMESTAMP,
+    HOURS_BEHIND FLOAT,
+    EXPECTED_INTERVAL_HOURS FLOAT,
+    FRESHNESS_STATUS STRING
+);
+
+
+COPY INTO GOLD_FRESHNESS
+FROM @gold_stage/gold_freshness.csv
+FILE_FORMAT = (
+    TYPE = CSV
+    SKIP_HEADER = 1
+    FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+);
+
+
+SELECT *
+FROM GOLD_FRESHNESS
+ORDER BY TABLE_NAME;
