@@ -1,0 +1,40 @@
+C = ['order_id','customer_id','order_ts','quantity','unit_price','channel','status']
+CTY = "'Chennai','Pune','Kochi','Indore','Jaipur','Bhopal','Nagpur','Surat'"; R = f'{VOL}/raw'
+def wr(df, path, cols):            
+# header on, whitespace preserved on write
+(df.selectExpr(*cols).write.mode('overwrite').option('header', True)
+.option('ignoreLeadingWhiteSpace', False)
+.option('ignoreTrailingWhiteSpace', False).csv(path))
+def day(d, n, first, q="cast(1 + pmod(id, 5) as string)", c=None, t=None):
+return spark.range(n).selectExpr(
+f"format_string('ORD%06d', id + {first}) order_id",
+c or "format_string('C%05d', cast(pmod(id*7919, 3000) as int)) customer_id",
+t or f"cast(date_add(date'2025-06-01', {d-1}) as string) order_ts",
+f"{q} quantity",
+"round(20 + pmod(id*37, 18000)/100.0, 2) unit_price",
+"concat('CH', cast(pmod(id, 4) as string)) channel",
+"if(pmod(id, 50) = 0, 'CANCELLED', 'PLACED') status")
+for d in range(1, 12):             
+# ten loaded files plus the clean control file
+wr(day(d, 5000, (d-1)*5000 + 1), f'{R}/orders/day_{d:02d}', C)
+for d in range(1, 11):             
+# 300 customers a file, 3,000 in all
+wr(spark.range(300).selectExpr(
+f"format_string('C%05d', cast(id + {(d-1)*300} as int)) customer_id",
+f"element_at(array({CTY}), cast(pmod(id + {(d-1)*300}, 8) as int) + 1) city",
+f"cast(date_add(date'2025-06-01', {d-1}) as string) signup_date"),
+f'{R}/customers/cust_day_{d:02d}', ['customer_id','city','signup_date'])
+wr(day(12, 5000, 55001, q="if(id < 40, 'unknown', cast(1+pmod(id,5) as string))"),
+f'{R}/orders/day_12', C)                          
+# 40 quantities not numeric
+wr(day(13, 4850, 60001).union(day(1, 150, 1)), f'{R}/orders/day_13', C)
+wr(day(14, 5000, 64851), f'{R}/orders/day_14',       
+# same names, moved order
+['order_id','order_ts','unit_price','quantity','status','channel','customer_id'])
+spark.createDataFrame([(','.join(C),)], 'value string') \
+.write.mode('overwrite').text(f'{R}/orders/day_15')    
+# header line, no rows
+wr(day(16, 5000, 69851, c="if(id < 220, 'C99999', format_string('C%05d',"
+" cast(pmod(id*7919, 3000) as int))) customer_id",
+t="if(id >= 220 and id < 310, '2035-06-16', '2025-06-16') order_ts"),
+f'{R}/orders/day_16', C
