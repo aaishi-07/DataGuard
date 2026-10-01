@@ -9,16 +9,57 @@ The pipeline processes Orders and Customers data, applies data-quality rules, re
 ## Architecture
 
 ```text
-DataGuard/
-│
-├── 2570002_notebook_bronze_silver_gold.ipynb
-├── 2570002_snowflake.sql
-├── generator_code.txt
-├── gold_dq_results.csv
-├── gold_freshness.csv
-├── DataGuard System Architecture.png
-├── README.md
-└── requirements.txt
+                    ┌──────────────────────┐
+                    │     Source Data      │
+                    │  Orders + Customers  │
+                    │      CSV Files       │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                ┌─────────────────────────────┐
+                │       BRONZE LAYER          │
+                │     Raw Data Ingestion      │
+                │                             │
+                │  bronze_orders              │
+                │  bronze_customers           │
+                │  Manifest / Load Metadata   │
+                └─────────────┬───────────────┘
+                              │
+                     Data Quality Checks
+                     R1 ─ R5
+                              │
+                 ┌────────────┴────────────┐
+                 │                         │
+                 ▼                         ▼
+        Valid Records              Rejected Records
+                 │                         │
+                 ▼                         ▼
+        ┌─────────────────┐       ┌──────────────────┐
+        │ SILVER LAYER    │       │ DQ / Rejections  │
+        │                 │       │                  │
+        │ silver_orders   │       │ R1-R5 rejects    │
+        │ Cleaned data    │       │ R6 file checks   │
+        │ Deduplicated    │       │ R7 row-count     │
+        └────────┬────────┘       └────────┬─────────┘
+                 │                         │
+                 └────────────┬────────────┘
+                              ▼
+                 ┌─────────────────────────┐
+                 │       GOLD LAYER        │
+                 │                         │
+                 │ gold_dq_results         │
+                 │ gold_freshness          │
+                 │                         │
+                 │ DQ metrics + monitoring │
+                 └────────────┬────────────┘
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │       Snowflake         │
+                 │                         │
+                 │ GOLD_DQ_RESULTS         │
+                 │ GOLD_FRESHNESS          │
+                 └─────────────────────────┘
 ```
 
 ## Technologies Used
